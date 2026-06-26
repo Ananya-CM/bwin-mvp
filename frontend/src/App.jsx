@@ -1,6 +1,8 @@
 import { useEffect, useState } from "react";
 import axios from "axios";
 
+const API = "http://127.0.0.1:8000";
+
 function App() {
   const [workers, setWorkers] = useState([]);
   const [jobs, setJobs] = useState([]);
@@ -22,49 +24,27 @@ function App() {
     salary: "",
   });
 
-  const fetchWorkers = async () => {
-    const res = await axios.get("https://bwin-api.onrender.com/workers");
-    setWorkers(res.data);
-  };
-
-  const fetchJobs = async () => {
-    const res = await axios.get("https://bwin-api.onrender.com/jobs");
-    setJobs(res.data);
-  };
-
-  const findMatches = async (workerId) => {
-    try {
-      const res = await axios.get(
-        `https://bwin-api.onrender.com/match-jobs/${workerId}`
-      );
-      setMatches(res.data);
-    } catch (err) {
-      console.error(err);
-    }
-  };
-
-  const getCareerAdvice = async (workerId) => {
-    try {
-      const res = await axios.get(
-        `https://bwin-api.onrender.com/career-advice/${workerId}`
-      );
-      setCareerAdvice(res.data);
-    } catch (err) {
-      console.error(err);
-    }
-  };
-
   useEffect(() => {
     fetchWorkers();
     fetchJobs();
   }, []);
 
+  const fetchWorkers = async () => {
+    const res = await axios.get(`${API}/workers`);
+    setWorkers(res.data);
+  };
+
+  const fetchJobs = async () => {
+    const res = await axios.get(`${API}/jobs`);
+    setJobs(res.data);
+  };
+
   const addWorker = async (e) => {
     e.preventDefault();
 
-    await axios.post("https://bwin-api.onrender.com/workers", {
+    await axios.post(`${API}/workers`, {
       ...workerForm,
-      age: parseInt(workerForm.age),
+      age: Number(workerForm.age),
     });
 
     setWorkerForm({
@@ -80,9 +60,9 @@ function App() {
   const addJob = async (e) => {
     e.preventDefault();
 
-    await axios.post("https://bwin-api.onrender.com/jobs", {
+    await axios.post(`${API}/jobs`, {
       ...jobForm,
-      salary: parseInt(jobForm.salary),
+      salary: Number(jobForm.salary),
     });
 
     setJobForm({
@@ -96,13 +76,23 @@ function App() {
     fetchJobs();
   };
 
+  const findMatches = async (workerId) => {
+    const res = await axios.get(`${API}/match-jobs/${workerId}`);
+    setMatches(res.data);
+  };
+
+  const getCareerAdvice = async (workerId) => {
+    const res = await axios.get(`${API}/career-advice/${workerId}`);
+    setCareerAdvice(res.data);
+  };
+
   return (
     <div
       style={{
-        padding: "30px",
-        fontFamily: "Arial",
         maxWidth: "1200px",
-        margin: "0 auto",
+        margin: "40px auto",
+        fontFamily: "Arial",
+        padding: "20px",
       }}
     >
       <h1>B-WIN Dashboard</h1>
@@ -145,7 +135,7 @@ function App() {
         <br /><br />
 
         <input
-          placeholder="Skill"
+          placeholder="Skills (comma separated)"
           value={workerForm.skill}
           onChange={(e) =>
             setWorkerForm({ ...workerForm, skill: e.target.value })
@@ -153,7 +143,7 @@ function App() {
         />
         <br /><br />
 
-        <button type="submit">Add Worker</button>
+        <button type="submit">Register Worker</button>
       </form>
 
       <hr />
@@ -189,7 +179,7 @@ function App() {
         <br /><br />
 
         <input
-          placeholder="Required Skill"
+          placeholder="Required Skills"
           value={jobForm.required_skill}
           onChange={(e) =>
             setJobForm({
@@ -210,7 +200,7 @@ function App() {
         />
         <br /><br />
 
-        <button type="submit">Add Job</button>
+        <button type="submit">Create Job</button>
       </form>
 
       <hr />
@@ -221,16 +211,19 @@ function App() {
         <div
           key={worker.id}
           style={{
-            border: "1px solid #ccc",
+            border: "1px solid #ddd",
+            borderRadius: "10px",
             padding: "15px",
-            marginBottom: "10px",
-            borderRadius: "8px",
+            marginBottom: "15px",
           }}
         >
           <h3>{worker.name}</h3>
-          <p>Skill: {worker.skill}</p>
-          <p>Location: {worker.location}</p>
-          <p>Age: {worker.age}</p>
+
+          <p><strong>Skills:</strong> {worker.skill}</p>
+
+          <p><strong>Location:</strong> {worker.location}</p>
+
+          <p><strong>Age:</strong> {worker.age}</p>
 
           <button onClick={() => findMatches(worker.id)}>
             Find Matching Jobs
@@ -250,29 +243,75 @@ function App() {
       <h2>Matching Results</h2>
 
       {matches && (
-        <div>
-          <h3>
-            {matches.worker.name} ({matches.worker.skill})
-          </h3>
+        <>
+          <h3>{matches.worker.name}</h3>
 
-          <p>Total Matches: {matches.total_matches}</p>
+          <p>
+            <strong>Skills:</strong> {matches.worker.skills}
+          </p>
+
+          <p>
+            <strong>Total Matches:</strong> {matches.total_matches}
+          </p>
 
           {matches.matched_jobs.map((job) => (
             <div
               key={job.id}
               style={{
-                border: "2px solid blue",
-                padding: "10px",
-                marginBottom: "10px",
+                border: "2px solid #2563eb",
+                borderRadius: "10px",
+                padding: "20px",
+                marginBottom: "20px",
+                background: "#f8fafc",
               }}
             >
-              <h4>{job.title}</h4>
-              <p>Company: {job.company}</p>
-              <p>Location: {job.location}</p>
-              <p>Salary: ₹{job.salary}</p>
+              <h3>{job.title}</h3>
+
+              <p><strong>Company:</strong> {job.company}</p>
+
+              <p><strong>Location:</strong> {job.location}</p>
+
+              <p>
+                <strong>Salary:</strong> ₹{job.salary.toLocaleString()}
+              </p>
+
+              <p>
+                <strong>Match Score:</strong> {job.match_percentage}%
+              </p>
+
+              <div
+                style={{
+                  width: "100%",
+                  height: "14px",
+                  background: "#ddd",
+                  borderRadius: "10px",
+                  overflow: "hidden",
+                  marginBottom: "12px",
+                }}
+              >
+                <div
+                  style={{
+                    width: `${job.match_percentage}%`,
+                    height: "100%",
+                    background: "#22c55e",
+                  }}
+                />
+              </div>
+
+              <p>
+                <strong>Matched Skills:</strong>{" "}
+                {job.matched_skills.join(", ")}
+              </p>
+
+              <p>
+                <strong>Missing Skills:</strong>{" "}
+                {job.missing_skills.length > 0
+                  ? job.missing_skills.join(", ")
+                  : "None"}
+              </p>
             </div>
           ))}
-        </div>
+        </>
       )}
 
       <hr />
@@ -283,15 +322,19 @@ function App() {
         <div
           style={{
             border: "2px solid orange",
-            padding: "15px",
+            padding: "20px",
+            borderRadius: "10px",
             marginBottom: "20px",
           }}
         >
-          <h3>
-            {careerAdvice.worker} ({careerAdvice.skill})
-          </h3>
+          <h3>{careerAdvice.worker}</h3>
+
+          <p>
+            <strong>Current Skills:</strong> {careerAdvice.skill}
+          </p>
 
           <h4>Recommended Skills</h4>
+
           <ul>
             {careerAdvice.advice.next_skills.map((skill) => (
               <li key={skill}>{skill}</li>
@@ -299,9 +342,11 @@ function App() {
           </ul>
 
           <h4>Salary Growth</h4>
+
           <p>{careerAdvice.advice.salary_growth}</p>
 
           <h4>Target Companies</h4>
+
           <ul>
             {careerAdvice.advice.companies.map((company) => (
               <li key={company}>{company}</li>
@@ -319,16 +364,22 @@ function App() {
           key={job.id}
           style={{
             border: "1px solid green",
+            borderRadius: "10px",
             padding: "15px",
-            marginBottom: "10px",
-            borderRadius: "8px",
+            marginBottom: "15px",
           }}
         >
           <h3>{job.title}</h3>
-          <p>Company: {job.company}</p>
-          <p>Required Skill: {job.required_skill}</p>
-          <p>Location: {job.location}</p>
-          <p>Salary: ₹{job.salary}</p>
+
+          <p><strong>Company:</strong> {job.company}</p>
+
+          <p><strong>Required Skills:</strong> {job.required_skill}</p>
+
+          <p><strong>Location:</strong> {job.location}</p>
+
+          <p>
+            <strong>Salary:</strong> ₹{job.salary.toLocaleString()}
+          </p>
         </div>
       ))}
     </div>
