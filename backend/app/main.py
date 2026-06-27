@@ -202,27 +202,29 @@ def career_advice(
 
 @app.post("/upload-resume")
 async def upload_resume(
-    file: UploadFile = File(...)
+    file: UploadFile = File(...),
+    db: Session = Depends(get_db)
 ):
-    """
-    Upload a PDF resume, extract text and detect skills.
-    """
+    os.makedirs("uploads", exist_ok=True)
 
-    upload_dir = "uploads"
-    os.makedirs(upload_dir, exist_ok=True)
-
-    file_path = os.path.join(
-        upload_dir,
-        file.filename
-    )
+    file_path = f"uploads/{file.filename}"
 
     with open(file_path, "wb") as buffer:
         buffer.write(await file.read())
 
     resume_text = extract_text(file_path)
 
-    detected_skills = extract_skills(
-        resume_text
+    detected_skills = extract_skills(resume_text)
+
+    jobs = db.query(JobDB).all()
+
+    matched_jobs = match_jobs(
+        ", ".join(detected_skills),
+        jobs
+    )
+
+    career_advice = get_career_advice(
+        ", ".join(detected_skills)
     )
 
     return {
@@ -230,5 +232,8 @@ async def upload_resume(
         "filename": file.filename,
         "skills": detected_skills,
         "total_skills": len(detected_skills),
-        "resume_preview": resume_text[:500]
+        "resume_preview": resume_text[:500],
+        "matched_jobs": matched_jobs,
+        "total_matches": len(matched_jobs),
+        "career_advice": career_advice
     }
