@@ -247,7 +247,7 @@ export default function App() {
       const res = await fetch(`${API_BASE}/jobs`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(jobForm),
+        body: JSON.stringify({ ...jobForm, salary: Number(jobForm.salary) }),
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.detail || 'Failed to create job');
@@ -389,13 +389,6 @@ export default function App() {
               <StatCard icon={<Icons.sparkles />} label="Skills Detected" value={resumeData ? resumeData.total_skills : 0} color="purple" />
             </div>
 
-            <div className="mission-banner">
-              <div className="mission-content">
-                <h3><Icons.heart /> Our Mission</h3>
-                <p>India has <strong>500 million informal workers</strong> with no career guidance. B-WIN uses AI to bridge that gap — connecting blue-collar talent with opportunity through skill matching, career roadmaps, and real-time job recommendations.</p>
-              </div>
-            </div>
-
             <div className="two-column">
               <div className="card">
                 <h2><Icons.workers /> Recent Workers</h2>
@@ -439,6 +432,13 @@ export default function App() {
                 )}
               </div>
             </div>
+
+            <div className="mission-banner">
+                <div className="mission-content">
+                  <h3><Icons.heart /> Our Mission</h3>
+                  <p>India has <strong>500 million informal workers</strong> with no career guidance. B-WIN uses AI to bridge that gap — connecting blue-collar talent with opportunity through skill matching, career roadmaps, and real-time job recommendations.</p>
+                </div>
+              </div>
           </div>
         )}
 
@@ -662,19 +662,18 @@ export default function App() {
                                 <h3>{job.title}</h3>
                                 <p><Icons.briefcase /> {job.company} · <Icons.mapPin /> {job.location}</p>
                               </div>
-                              <MatchScore score={job.match_score} />
+                              <MatchScore score={job.match_percentage} />
                             </div>
                             <div className="match-detail">
                               <span className="match-label">Match Score</span>
-                              <ProgressBar value={job.match_score} />
+                              <ProgressBar value={job.match_percentage} />
                             </div>
                             <div className="skills">
-                              {job.required_skills?.map((s, i) => (
-                                <SkillChip
-                                  key={i}
-                                  skill={s}
-                                  variant={job.matched_skills?.includes(s) ? 'success' : 'danger'}
-                                />
+                              {job.matched_skills?.map((s, i) => (
+                                <SkillChip key={i} skill={s} variant="success" />
+                              ))}
+                              {job.missing_skills?.map((s, i) => (
+                                <SkillChip key={i} skill={s} variant="danger" />
                               ))}
                             </div>
                           </div>
@@ -740,12 +739,12 @@ export default function App() {
                             <h3>{job.title}</h3>
                             <p><Icons.briefcase /> {job.company} · <Icons.mapPin /> {job.location}</p>
                           </div>
-                          <MatchScore score={job.match_score} />
+                          <MatchScore score={job.match_percentage} />
                         </div>
 
                         <div className="match-detail">
                           <span className="match-label">Match Score</span>
-                          <ProgressBar value={job.match_score} />
+                          <ProgressBar value={job.match_percentage} />
                         </div>
 
                         <div className="match-breakdown">
@@ -794,46 +793,62 @@ export default function App() {
                   </button>
                 </div>
               </div>
-            ) : (
+            ) : (() => {
+              // API returns advice as a dict with: career_path (string "A → B → C"),
+              // salary_growth (string), next_skills (array), companies (array),
+              // certifications (array), social_impact (string)
+              const adv = careerData.advice || {};
+              const pathSteps = typeof adv.career_path === 'string'
+                ? adv.career_path.split('→').map(s => s.trim()).filter(Boolean)
+                : Array.isArray(adv.career_path) ? adv.career_path : [];
+              return (
               <div className="roadmap-layout">
-                {/* Career Path */}
-                <div className="card">
-                  <h2><Icons.trendUp /> Career Progression</h2>
-                  <div className="career-path">
-                    {careerData.advice?.career_path?.map((step, i) => (
-                      <div key={i} className={`path-step ${i === 0 ? 'start' : i === careerData.advice.career_path.length - 1 ? 'end' : 'mid'}`}>
-                        <div className="step-marker">{i + 1}</div>
-                        <div className="step-content">
-                          <h4>{step}</h4>
-                          {i < careerData.advice.career_path.length - 1 && <Icons.chevronRight />}
-                        </div>
-                      </div>
-                    )) || (
-                      <div className="advice-box">{careerData.advice}</div>
-                    )}
+                {/* Worker + Skill header */}
+                <div className="card worker-summary" style={{marginBottom: 24}}>
+                  <div className="worker-summary-content">
+                    <div>
+                      <h3 style={{marginBottom:6}}>{careerData.worker}</h3>
+                      <p style={{color:'var(--muted)',fontSize:14}}>Current skill: <strong style={{color:'var(--ink)'}}>{careerData.skill}</strong></p>
+                    </div>
                   </div>
                 </div>
 
+                {/* Career Path */}
+                {pathSteps.length > 0 && (
+                  <div className="card">
+                    <h2><Icons.trendUp /> Career Progression</h2>
+                    <div className="career-path">
+                      {pathSteps.map((step, i) => (
+                        <div key={i} className={`path-step ${i === 0 ? 'start' : i === pathSteps.length - 1 ? 'end' : 'mid'}`}>
+                          <div className="step-marker">{i + 1}</div>
+                          <div className="step-content">
+                            <h4>{step}</h4>
+                            {i < pathSteps.length - 1 && <Icons.chevronRight />}
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
                 <div className="two-column">
-                  {/* Salary Card */}
-                  {careerData.advice?.salary_range && (
+                  {/* Salary Growth */}
+                  {adv.salary_growth && (
                     <div className="card salary-card">
-                      <h2><Icons.zap /> Salary Growth</h2>
-                      <div className="salary-display">
-                        <span className="salary-from">{careerData.advice.salary_range.from}</span>
-                        <Icons.arrowRight />
-                        <span className="salary-to">{careerData.advice.salary_range.to}</span>
+                      <h2><Icons.zap /> Salary Growth Potential</h2>
+                      <div className="salary-display" style={{justifyContent:'center'}}>
+                        <span className="salary-to" style={{fontSize:26}}>{adv.salary_growth}</span>
                       </div>
-                      <p className="salary-note">Potential earnings growth with skill development</p>
+                      <p className="salary-note">Monthly · Indian market estimate</p>
                     </div>
                   )}
 
                   {/* Certifications */}
-                  {careerData.advice?.certifications && (
+                  {adv.certifications?.length > 0 && (
                     <div className="card">
                       <h2><Icons.award /> Recommended Certifications</h2>
                       <ul className="cert-list">
-                        {careerData.advice.certifications.map((cert, i) => (
+                        {adv.certifications.map((cert, i) => (
                           <li key={i}><Icons.check /> {cert}</li>
                         ))}
                       </ul>
@@ -841,12 +856,24 @@ export default function App() {
                   )}
                 </div>
 
+                {/* Skills to Learn */}
+                {adv.next_skills?.length > 0 && (
+                  <div className="card">
+                    <h2><Icons.sparkles /> Skills to Learn Next</h2>
+                    <div className="skills">
+                      {adv.next_skills.map((s, i) => (
+                        <span key={i} className="skill-chip">{i+1}. {s}</span>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
                 {/* Target Companies */}
-                {careerData.advice?.target_companies && (
+                {adv.companies?.length > 0 && (
                   <div className="card">
                     <h2><Icons.building /> Target Companies</h2>
                     <div className="company-grid">
-                      {careerData.advice.target_companies.map((comp, i) => (
+                      {adv.companies.map((comp, i) => (
                         <div key={i} className="company-chip">
                           <Icons.building /> {comp}
                         </div>
@@ -856,22 +883,14 @@ export default function App() {
                 )}
 
                 {/* Social Impact */}
-                {careerData.advice?.social_impact && (
+                {adv.social_impact && (
                   <div className="card impact-card">
                     <h2><Icons.heart /> Social Impact</h2>
-                    <p>{careerData.advice.social_impact}</p>
-                  </div>
-                )}
-
-                {/* Raw Advice Fallback */}
-                {typeof careerData.advice === 'string' && (
-                  <div className="card">
-                    <h2><Icons.sparkles /> Career Advice</h2>
-                    <div className="advice-box">{careerData.advice}</div>
+                    <p>{adv.social_impact}</p>
                   </div>
                 )}
               </div>
-            )}
+            );})()}
           </div>
         )}
       </main>
